@@ -1,0 +1,7 @@
+/*.sdf
+/*.opensdf
+/ipch
+/extern/freeglut-2.8.1/VisualStudio/2012/build
+/extern/glew-1.10.0/build/vc10/tmp
+/extern/glew-1.10.0/lib
+/extern/freeglut-2.8.1/lib

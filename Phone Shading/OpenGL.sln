@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "freeglut", "extern\freeglut-2.8.1\VisualStudio\2012\freeglut.vcxproj", "{1AE4E979-0D35-4747-BF8E-DD60358F49DB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "glew_static", "extern\glew-1.10.0\build\vc10\glew_static.vcxproj", "{664E6F0D-6784-4760-9565-D54F8EB1EDF4}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SOIL", "extern\SOIL\projects\VC9\SOIL.vcxproj", "{C32FB2B4-500C-43CD-A099-EECCE079D3F1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TextureAndLighting", "TexturingAndLighting\TextureAndLighting.vcxproj", "{4966EFA7-5A1B-4E15-9540-39B2E5D9B235}"
+	ProjectSection(ProjectDependencies) = postProject
+		{664E6F0D-6784-4760-9565-D54F8EB1EDF4} = {664E6F0D-6784-4760-9565-D54F8EB1EDF4}
+		{1AE4E979-0D35-4747-BF8E-DD60358F49DB} = {1AE4E979-0D35-4747-BF8E-DD60358F49DB}
+		{C32FB2B4-500C-43CD-A099-EECCE079D3F1} = {C32FB2B4-500C-43CD-A099-EECCE079D3F1}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1AE4E979-0D35-4747-BF8E-DD60358F49DB}.Debug|Win32.ActiveCfg = Debug_Static|Win32
+		{1AE4E979-0D35-4747-BF8E-DD60358F49DB}.Debug|Win32.Build.0 = Debug_Static|Win32
+		{1AE4E979-0D35-4747-BF8E-DD60358F49DB}.Release|Win32.ActiveCfg = Release_Static|Win32
+		{1AE4E979-0D35-4747-BF8E-DD60358F49DB}.Release|Win32.Build.0 = Release_Static|Win32
+		{664E6F0D-6784-4760-9565-D54F8EB1EDF4}.Debug|Win32.ActiveCfg = Debug|Win32
+		{664E6F0D-6784-4760-9565-D54F8EB1EDF4}.Debug|Win32.Build.0 = Debug|Win32
+		{664E6F0D-6784-4760-9565-D54F8EB1EDF4}.Release|Win32.ActiveCfg = Release|Win32
+		{664E6F0D-6784-4760-9565-D54F8EB1EDF4}.Release|Win32.Build.0 = Release|Win32
+		{C32FB2B4-500C-43CD-A099-EECCE079D3F1}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C32FB2B4-500C-43CD-A099-EECCE079D3F1}.Debug|Win32.Build.0 = Debug|Win32
+		{C32FB2B4-500C-43CD-A099-EECCE079D3F1}.Release|Win32.ActiveCfg = Release|Win32
+		{C32FB2B4-500C-43CD-A099-EECCE079D3F1}.Release|Win32.Build.0 = Release|Win32
+		{4966EFA7-5A1B-4E15-9540-39B2E5D9B235}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4966EFA7-5A1B-4E15-9540-39B2E5D9B235}.Debug|Win32.Build.0 = Debug|Win32
+		{4966EFA7-5A1B-4E15-9540-39B2E5D9B235}.Release|Win32.ActiveCfg = Release|Win32
+		{4966EFA7-5A1B-4E15-9540-39B2E5D9B235}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
