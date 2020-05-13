@@ -18,6 +18,7 @@ int g_iWindowHandle = 0;
 
 int g_W, g_A, g_S, g_D, g_Q, g_E;
 bool g_bShift = false;
+GLboolean blinn = false;
 
 glm::ivec2 g_MousePos;
 
@@ -53,6 +54,7 @@ GLint g_uniformMaterialEmissive = -1;
 GLint g_uniformMaterialDiffuse = -1;
 GLint g_uniformMaterialSpecular = -1;
 GLint g_uniformMaterialShininess =-1;
+GLint g_uniformBlinn = -1;
 
 GLuint g_EarthTexture = 0;
 GLuint g_MoonTexture = 0;
@@ -376,6 +378,7 @@ int main( int argc, char* argv[] )
     g_uniformMaterialDiffuse = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "MaterialDiffuse" );
     g_uniformMaterialSpecular = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "MaterialSpecular" );
     g_uniformMaterialShininess = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "MaterialShininess" );
+	g_uniformBlinn = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "blinn" );
 
     glutMainLoop();
 }
@@ -432,6 +435,10 @@ void DisplayGL()
     glUniform4fv( g_uniformLightPosW, 1, glm::value_ptr(modelMatrix[3]) );
     glUniform4fv( g_uniformLightColor, 1, glm::value_ptr(white) );
     glUniform4fv( g_uniformAmbient, 1, glm::value_ptr(ambient) );
+
+	//switch between blinn phong and phong shading
+	glUniform1i(g_uniformBlinn, blinn);
+
     
 	// Draw the Earth
     modelMatrix = glm::rotate( glm::radians(g_fEarthRotation), glm::vec3(0,1,0) ) * glm::scale(glm::vec3(12.756f) );
@@ -450,7 +457,7 @@ void DisplayGL()
 	//Specular Color RGBA
 	GLfloat vSpecularColor[] = { 2.0f, 2.0f, 2.0f, 1.0f };
     glUniform4fv( g_uniformMaterialSpecular, 1, vSpecularColor);
-    glUniform1f( g_uniformMaterialShininess, 10.0f );
+    glUniform1f( g_uniformMaterialShininess, 50.0f );
 
     glDrawElements( GL_TRIANGLES, numIndicies, GL_UNSIGNED_INT, BUFFER_OFFSET(0) );
 
@@ -546,6 +553,10 @@ void KeyboardGL( unsigned char c, int x, int y )
         g_fSunRotation = 0.0f;
         g_fMoonRotation = 0.0f;
         break;
+	case 'B':
+	case 'b':
+		blinn = !blinn;
+		break;
     case 27:
         glutLeaveMainLoop();
         break;

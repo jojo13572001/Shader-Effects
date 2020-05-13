@@ -12,6 +12,7 @@ uniform vec4 MaterialEmissive;
 uniform vec4 MaterialDiffuse;
 uniform vec4 MaterialSpecular;
 uniform float MaterialShininess;
+uniform bool blinn;
 
 uniform vec4 Ambient; // Global ambient contribution.
 
@@ -36,7 +37,17 @@ void main()
     vec4 R = reflect( -L, N );
     float RdotV = max( dot( R, V ), 0 );
     float NdotH = max( dot( N, H ), 0 );
-    vec4 Specular = pow( RdotV, MaterialShininess ) * LightColor * MaterialSpecular;
-    
-    out_color = ( Emissive + Ambient + Diffuse + Specular ) * texture( diffuseSampler, v2f_texcoord );
+
+	vec4 Specular;
+	if(blinn)
+	{
+		//Blinn Phong Model
+        Specular = pow( NdotH, MaterialShininess ) * LightColor * MaterialSpecular;
+	}
+    else {
+		//Phong model
+		Specular = pow( RdotV, MaterialShininess ) * LightColor * MaterialSpecular;
+	}
+
+	out_color = ( Emissive + Ambient + Diffuse + Specular ) * texture( diffuseSampler, v2f_texcoord );
 }
