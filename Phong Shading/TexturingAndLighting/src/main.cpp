@@ -410,6 +410,12 @@ void DisplayGL()
 {
     int slices = 32;
     int stacks = 32;
+	//for fps calculate
+	static int currentTicks = 0, previousTicks = 0;
+	static float fDeltaTime = 0.0f;
+	static int frameCount = 0;
+	static std::string fps = "0 fps";
+
     int numIndicies = ( slices * stacks + slices ) * 6;
     if ( g_vaoSphere == 0 )
     {
@@ -488,6 +494,20 @@ void DisplayGL()
     glUseProgram(0);
     glBindTexture( GL_TEXTURE_2D, 0 );
 
+	frameCount++;
+	currentTicks = std::clock();
+	float deltaTicks = (float)(currentTicks - previousTicks);
+	previousTicks = currentTicks;
+	fDeltaTime += deltaTicks / (float)CLOCKS_PER_SEC;
+	
+	if (fDeltaTime > 2.0f) {
+		float fpsRate = frameCount/fDeltaTime;
+		fDeltaTime = 0.0f;
+		frameCount = 0;
+		fps = std::to_string(fpsRate);
+	}
+
+	drawStrokeText(const_cast<char*>(fps.c_str()), 0, g_iWindowHeight*0.9, 0);
 	drawStrokeText(const_cast<char*>(shaderTypes[shaderTypeIdx].c_str()), 0, g_iWindowHeight/2, 0);
 		
     glutSwapBuffers();
