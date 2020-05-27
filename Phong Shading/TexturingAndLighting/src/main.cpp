@@ -12,6 +12,7 @@
 #define BUFFER_OFFSET(offset) ((void*)(offset))
 #define MEMBER_OFFSET(s,m) ((char*)NULL + (offsetof(s,m)))
 
+// the size will be changed after reshape()
 int g_iWindowWidth = 1280;
 int g_iWindowHeight = 720;
 int g_iWindowHandle = 0;
@@ -59,6 +60,9 @@ GLint g_uniformBlinn = -1;
 GLuint g_EarthTexture = 0;
 GLuint g_MoonTexture = 0;
 
+std::vector<std::string> shaderTypes = { "Phong", "Blinn Phong" };
+int shaderTypeIdx = 0;
+
 void IdleGL();
 void DisplayGL();
 void KeyboardGL( unsigned char c, int x, int y );
@@ -85,10 +89,11 @@ void InitGL( int argc, char* argv[] )
 
     glutInitDisplayMode(GLUT_RGBA|GLUT_ALPHA|GLUT_DOUBLE|GLUT_DEPTH);
 
+	//comment this because drawStrokeText() not supported
     // Create an OpenGL 3.3 core forward compatible context.
-    glutInitContextVersion( 3, 3 );
-    glutInitContextProfile(GLUT_CORE_PROFILE);
-    glutInitContextFlags( GLUT_FORWARD_COMPATIBLE );
+    //glutInitContextVersion( 3, 3 );
+    //glutInitContextProfile(GLUT_CORE_PROFILE);
+    //glutInitContextFlags( GLUT_FORWARD_COMPATIBLE );
 
     glutInitWindowPosition( ( iScreenWidth - g_iWindowWidth ) / 2, (iScreenHeight - g_iWindowHeight) / 2 );
     glutInitWindowSize( g_iWindowWidth, g_iWindowHeight );
@@ -396,6 +401,8 @@ void ReshapeGL( int w, int h )
     g_Camera.SetViewport( 0, 0, w, h );
     g_Camera.SetProjectionRH( 30.0f, w/(float)h, 0.1f, 200.0f );
 
+	gluOrtho2D(0, w,0, h);
+
     glutPostRedisplay();
 }
 
@@ -481,6 +488,8 @@ void DisplayGL()
     glUseProgram(0);
     glBindTexture( GL_TEXTURE_2D, 0 );
 
+	drawStrokeText(const_cast<char*>(shaderTypes[shaderTypeIdx].c_str()), 0, g_iWindowHeight/2, 0);
+		
     glutSwapBuffers();
 }
 
@@ -556,6 +565,7 @@ void KeyboardGL( unsigned char c, int x, int y )
 	case 'B':
 	case 'b':
 		blinn = !blinn;
+		++shaderTypeIdx %= shaderTypes.size();
 		break;
     case 27:
         glutLeaveMainLoop();
