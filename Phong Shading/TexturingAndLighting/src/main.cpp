@@ -504,7 +504,7 @@ void DisplayGL()
 		float fpsRate = frameCount/fDeltaTime;
 		fDeltaTime = 0.0f;
 		frameCount = 0;
-		fps = std::to_string(fpsRate);
+		fps = std::to_string(fpsRate) + " fps";
 	}
 
 	drawStrokeText(const_cast<char*>(fps.c_str()), 0, g_iWindowHeight*0.9, 0);
