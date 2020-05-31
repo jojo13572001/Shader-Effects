@@ -1,5 +1,8 @@
-#include <TextureAndLightingPCH.h>
+﻿#include <TextureAndLightingPCH.h>
+#include <math.h>
+
 #include <Camera.h>
+
 
 #define POSITION_ATTRIBUTE 0
 #define NORMAL_ATTRIBUTE 2
@@ -56,9 +59,11 @@ GLint g_uniformMaterialDiffuse = -1;
 GLint g_uniformMaterialSpecular = -1;
 GLint g_uniformMaterialShininess =-1;
 GLint g_uniformBlinn = -1;
+GLint g_uniformLut = -1;
 
 GLuint g_EarthTexture = 0;
 GLuint g_MoonTexture = 0;
+GLuint g_LutTexture = 0;
 
 std::vector<std::string> shaderTypes = { "Phong", "Blinn Phong" };
 int shaderTypeIdx = 0;
@@ -249,6 +254,39 @@ GLuint LoadTexture( const std::string& file )
     return textureID;
 }
 
+GLuint LoadLookupTable(float spec, const glm::vec4& lightColor, int width, int height)
+{
+	int idx = 0;
+	GLuint lutTexture = 0;
+	GLubyte* data = (GLubyte*)new GLubyte[width * height * 4];
+	GLuint uniformLut = 0;
+	
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x, idx += 4) {
+			float vx = x / float(width);
+			float vy = y / float(height);
+			float nl = vx;
+			float nh = vy;
+			float s = powf(nh, spec);
+			data[idx + 0] = nl * lightColor.r * 255.0f;
+			data[idx + 1] = nl * lightColor.g * 255.0f;
+			data[idx + 2] = nl * lightColor.b * 255.0f;
+			data[idx + 3] = s*255.0f;
+		}
+	}
+
+	glGenTextures(1, &lutTexture);
+	glBindTexture(GL_TEXTURE_2D, lutTexture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	delete[] data;
+	return lutTexture;
+}
+
 GLuint SolidSphere( float radius, int slices, int stacks )
 {
     using namespace glm;
@@ -343,6 +381,11 @@ int main( int argc, char* argv[] )
 
     g_EarthTexture = LoadTexture( "../data/Textures/earth.dds" );
     g_MoonTexture = LoadTexture( "../data/Textures/moon.dds" );
+	
+	//creat lookup table texture
+	int width = 256, height = 256;
+	g_LutTexture = LoadLookupTable(50.0f, glm::vec4(1), width, height);
+
 
     GLuint vertexShader = LoadShader( GL_VERTEX_SHADER, "../data/shaders/simpleShader.vert" );
     GLuint fragmentShader = LoadShader( GL_FRAGMENT_SHADER, "../data/shaders/simpleShader.frag" );
@@ -384,6 +427,7 @@ int main( int argc, char* argv[] )
     g_uniformMaterialSpecular = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "MaterialSpecular" );
     g_uniformMaterialShininess = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "MaterialShininess" );
 	g_uniformBlinn = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "blinn" );
+	g_uniformLut = glGetUniformLocation(g_TexturedDiffuseShaderProgram, "lutSampler");
 
     glutMainLoop();
 }
@@ -440,9 +484,16 @@ void DisplayGL()
 
     glDrawElements( GL_TRIANGLES, numIndicies, GL_UNSIGNED_INT, BUFFER_OFFSET(0) );
 
-    // Draw the earth.
-    glBindTexture( GL_TEXTURE_2D, g_EarthTexture );
+
+	//glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, g_EarthTexture);
+	// Load the LUT
+	int lutIndex = 1;
+	glActiveTexture(GL_TEXTURE0 + lutIndex);
+	glBindTexture(GL_TEXTURE_2D, g_LutTexture);
+	
     glUseProgram( g_TexturedDiffuseShaderProgram );
+	glUniform1i(g_uniformLut, lutIndex); // location = 9 <- texture unit 1
 
     // Set the light position to the position of the Sun.
     glUniform4fv( g_uniformLightPosW, 1, glm::value_ptr(modelMatrix[3]) );
@@ -473,7 +524,7 @@ void DisplayGL()
     glUniform1f( g_uniformMaterialShininess, 50.0f );
 
     glDrawElements( GL_TRIANGLES, numIndicies, GL_UNSIGNED_INT, BUFFER_OFFSET(0) );
-
+	/*
     // Draw the moon.
     glBindTexture( GL_TEXTURE_2D, g_MoonTexture );
 
@@ -489,7 +540,7 @@ void DisplayGL()
     glUniform1f( g_uniformMaterialShininess, 5.0f );
 
     glDrawElements( GL_TRIANGLES, numIndicies, GL_UNSIGNED_INT, BUFFER_OFFSET(0) );
-
+	*/
     glBindVertexArray(0);
     glUseProgram(0);
     glBindTexture( GL_TEXTURE_2D, 0 );
