@@ -1,5 +1,6 @@
 ﻿#include <TextureAndLightingPCH.h>
 #include <math.h>
+#include <algorithm>
 
 #include <Camera.h>
 
@@ -22,7 +23,7 @@ int g_iWindowHandle = 0;
 
 int g_W, g_A, g_S, g_D, g_Q, g_E;
 bool g_bShift = false;
-GLboolean blinn = false;
+GLuint shaderType = 0;
 
 glm::ivec2 g_MousePos;
 
@@ -58,15 +59,20 @@ GLint g_uniformMaterialEmissive = -1;
 GLint g_uniformMaterialDiffuse = -1;
 GLint g_uniformMaterialSpecular = -1;
 GLint g_uniformMaterialShininess =-1;
-GLint g_uniformBlinn = -1;
-GLint g_uniformLut = -1;
+GLint g_uniformShaderType = -1;
+
+std::vector<GLint> g_uniformLuts(2, -1);
 
 GLuint g_EarthTexture = 0;
 GLuint g_MoonTexture = 0;
-GLuint g_LutTexture = 0;
+std::vector<GLuint> g_LutTextures;
 
-std::vector<std::string> shaderTypes = { "Phong", "Blinn Phong" };
-int shaderTypeIdx = 0;
+std::vector<std::string> shaderTypes = { "Phong", "Blinn Phong" , "LUT Blinn Phong"};
+glm::vec4 materialDiffuseEarth(1);
+glm::vec4 lightColor(1);
+glm::vec4 materialSpecularEarth(2.0f, 2.0f, 2.0f, 1.0f);
+GLfloat masterialShininessEarth = 50.0f;
+
 
 void IdleGL();
 void DisplayGL();
@@ -254,37 +260,81 @@ GLuint LoadTexture( const std::string& file )
     return textureID;
 }
 
-GLuint LoadLookupTable(float spec, const glm::vec4& lightColor, int width, int height)
+std::vector<GLuint> LoadLookupTable(int width, int height,
+					   GLfloat specShineness,
+					   const glm::vec4& lightColor,
+					   const glm::vec4& materialDiffuseEarth,
+					   const glm::vec4& materialSpecularEarth)
 {
 	int idx = 0;
-	GLuint lutTexture = 0;
-	GLubyte* data = (GLubyte*)new GLubyte[width * height * 4];
+	std::vector<GLuint> lutTextures(2);
+	std::vector<GLubyte> dataDiffuse(width * height * 4);
+	std::vector<GLubyte> dataSpecular(width * height * 4);
 	GLuint uniformLut = 0;
 	
 	for (int y = 0; y < height; ++y) {
 		for (int x = 0; x < width; ++x, idx += 4) {
 			float vx = x / float(width);
-			float vy = y / float(height);
+			//float vy = y / float(height);
 			float nl = vx;
-			float nh = vy;
-			float s = powf(nh, spec);
-			data[idx + 0] = nl * lightColor.r * 255.0f;
-			data[idx + 1] = nl * lightColor.g * 255.0f;
-			data[idx + 2] = nl * lightColor.b * 255.0f;
-			data[idx + 3] = s*255.0f;
+			float nh = vx;
+			
+			glm::vec4 resultDiffuse = nl*lightColor*materialDiffuseEarth*255.0f;
+			dataDiffuse[idx + 0] = round(std::min(255.0f, resultDiffuse.r));
+			dataDiffuse[idx + 1] = round(std::min(255.0f, resultDiffuse.g));
+			dataDiffuse[idx + 2] = round(std::min(255.0f, resultDiffuse.b));
+			dataDiffuse[idx + 3] = 255;
+
+			float spec = powf(nh, specShineness);
+			glm::vec4 resultSpecular = spec*lightColor*materialSpecularEarth*255.0f;
+			dataSpecular[idx + 0] = round(std::min(255.0f, resultSpecular.r));
+			dataSpecular[idx + 1] = round(std::min(255.0f, resultSpecular.g));
+			dataSpecular[idx + 2] = round(std::min(255.0f, resultSpecular.b));
+			dataSpecular[idx + 3] = 255;
+			//the 0~255 will be normalized to 0~1 after taken from fragment texture2D
 		}
 	}
 
-	glGenTextures(1, &lutTexture);
-	glBindTexture(GL_TEXTURE_2D, lutTexture);
+	auto normalize = [=](std::vector<GLfloat>& data) {
+		for (int channel = 0; channel < 3; channel++) {
+			GLfloat max = data[channel], min = data[channel];
+			int idx = 0;
+			for (int y = 0; y < height; ++y) {
+				for (int x = 0; x < width; ++x, idx += 4) {
+					if (max < data[idx + channel]) {
+						max = data[idx + channel];
+					}
+					if (min > data[idx + channel]) {
+						min = data[idx + channel];
+					}
+				}
+			}
+			GLfloat interval = max - min;
+			idx = 0;
+			for (int y = 0; y < height; ++y) {
+				for (int x = 0; x < width; ++x, idx += 4) {
+					data[idx + channel] = (data[idx + channel] - min) / interval * 255.0f;
+				}
+			}
+		}
+	};
+
+	glGenTextures(2, &lutTextures[0]);
+	glBindTexture(GL_TEXTURE_2D, lutTextures[0]);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &dataDiffuse[0]);
+
+	glBindTexture(GL_TEXTURE_2D, lutTextures[1]);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, &dataSpecular[0]);
 	glBindTexture(GL_TEXTURE_2D, 0);
-	delete[] data;
-	return lutTexture;
+	return lutTextures;
 }
 
 GLuint SolidSphere( float radius, int slices, int stacks )
@@ -383,8 +433,8 @@ int main( int argc, char* argv[] )
     g_MoonTexture = LoadTexture( "../data/Textures/moon.dds" );
 	
 	//creat lookup table texture
-	int width = 256, height = 256;
-	g_LutTexture = LoadLookupTable(50.0f, glm::vec4(1), width, height);
+	int width = 1024, height = 1;
+	g_LutTextures = LoadLookupTable(width, height, masterialShininessEarth, lightColor, materialDiffuseEarth, materialSpecularEarth);
 
 
     GLuint vertexShader = LoadShader( GL_VERTEX_SHADER, "../data/shaders/simpleShader.vert" );
@@ -426,8 +476,9 @@ int main( int argc, char* argv[] )
     g_uniformMaterialDiffuse = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "MaterialDiffuse" );
     g_uniformMaterialSpecular = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "MaterialSpecular" );
     g_uniformMaterialShininess = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "MaterialShininess" );
-	g_uniformBlinn = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "blinn" );
-	g_uniformLut = glGetUniformLocation(g_TexturedDiffuseShaderProgram, "lutSampler");
+	g_uniformShaderType = glGetUniformLocation( g_TexturedDiffuseShaderProgram, "shaderType" );
+	g_uniformLuts[0] = glGetUniformLocation(g_TexturedDiffuseShaderProgram, "lutDiffuseSampler");
+	g_uniformLuts[1] = glGetUniformLocation(g_TexturedDiffuseShaderProgram, "lutSpecularSampler");
 
     glutMainLoop();
 }
@@ -466,7 +517,7 @@ void DisplayGL()
         g_vaoSphere = SolidSphere( 1, slices, stacks );
     }
 
-    const glm::vec4 white(1);
+    //const glm::vec4 white(1);
     const glm::vec4 black(0);
     const glm::vec4 ambient( 0.1f, 0.1f, 0.1f, 1.0f );
 
@@ -480,7 +531,7 @@ void DisplayGL()
     glm::mat4 mvp = g_Camera.GetProjectionMatrix() * g_Camera.GetViewMatrix() * modelMatrix;
     GLuint uniformMVP = glGetUniformLocation( g_SimpleShaderProgram, "MVP" );
     glUniformMatrix4fv( uniformMVP, 1, GL_FALSE, glm::value_ptr(mvp) );
-    glUniform4fv(g_uniformColor, 1, glm::value_ptr(white) );
+    glUniform4fv(g_uniformColor, 1, glm::value_ptr(lightColor) );
 
     glDrawElements( GL_TRIANGLES, numIndicies, GL_UNSIGNED_INT, BUFFER_OFFSET(0) );
 
@@ -488,20 +539,26 @@ void DisplayGL()
 	//glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, g_EarthTexture);
 	// Load the LUT
-	int lutIndex = 1;
-	glActiveTexture(GL_TEXTURE0 + lutIndex);
-	glBindTexture(GL_TEXTURE_2D, g_LutTexture);
+	//int lutIndex = 1;
+	glActiveTexture(GL_TEXTURE0 + 1);
+	glBindTexture(GL_TEXTURE_2D, g_LutTextures[0]);
+
+	glActiveTexture(GL_TEXTURE0 + 2);
+	glBindTexture(GL_TEXTURE_2D, g_LutTextures[1]);
 	
+	//start using shader
     glUseProgram( g_TexturedDiffuseShaderProgram );
-	glUniform1i(g_uniformLut, lutIndex); // location = 9 <- texture unit 1
+
+	glUniform1i(g_uniformLuts[0], 1); // location = 9 <- texture unit 1
+	glUniform1i(g_uniformLuts[1], 2);
 
     // Set the light position to the position of the Sun.
     glUniform4fv( g_uniformLightPosW, 1, glm::value_ptr(modelMatrix[3]) );
-    glUniform4fv( g_uniformLightColor, 1, glm::value_ptr(white) );
+    glUniform4fv( g_uniformLightColor, 1, glm::value_ptr(lightColor) );
     glUniform4fv( g_uniformAmbient, 1, glm::value_ptr(ambient) );
 
 	//switch between blinn phong and phong shading
-	glUniform1i(g_uniformBlinn, blinn);
+	glUniform1i(g_uniformShaderType, shaderType);
 
     
 	// Draw the Earth
@@ -514,14 +571,13 @@ void DisplayGL()
     glUniformMatrix4fv( g_uniformModelMatrix, 1, GL_FALSE, glm::value_ptr(modelMatrix) );
     glUniform4fv( g_uniformEyePosW, 1, glm::value_ptr( eyePosW ) );
 
-    // Material properties.
+    // Earth Diffuse, Emissive Material properties.
     glUniform4fv( g_uniformMaterialEmissive, 1, glm::value_ptr(black) );
-    glUniform4fv( g_uniformMaterialDiffuse, 1, glm::value_ptr(white) );
+    glUniform4fv( g_uniformMaterialDiffuse, 1, glm::value_ptr(materialDiffuseEarth) );
 
-	//Specular Color RGBA
-	GLfloat vSpecularColor[] = { 2.0f, 2.0f, 2.0f, 1.0f };
-    glUniform4fv( g_uniformMaterialSpecular, 1, vSpecularColor);
-    glUniform1f( g_uniformMaterialShininess, 50.0f );
+	// Earth Specular Color RGBA
+    glUniform4fv( g_uniformMaterialSpecular, 1, glm::value_ptr(materialSpecularEarth));
+    glUniform1f( g_uniformMaterialShininess, masterialShininessEarth );
 
     glDrawElements( GL_TRIANGLES, numIndicies, GL_UNSIGNED_INT, BUFFER_OFFSET(0) );
 	/*
@@ -559,7 +615,7 @@ void DisplayGL()
 	}
 
 	drawStrokeText(const_cast<char*>(fps.c_str()), 0, g_iWindowHeight*0.9, 0);
-	drawStrokeText(const_cast<char*>(shaderTypes[shaderTypeIdx].c_str()), 0, g_iWindowHeight/2, 0);
+	drawStrokeText(const_cast<char*>(shaderTypes[shaderType].c_str()), 0, g_iWindowHeight/2, 0);
 		
     glutSwapBuffers();
 }
@@ -633,10 +689,9 @@ void KeyboardGL( unsigned char c, int x, int y )
         g_fSunRotation = 0.0f;
         g_fMoonRotation = 0.0f;
         break;
-	case 'B':
-	case 'b':
-		blinn = !blinn;
-		++shaderTypeIdx %= shaderTypes.size();
+	case 'T':
+	case 't':
+		++shaderType %= shaderTypes.size();
 		break;
     case 27:
         glutLeaveMainLoop();

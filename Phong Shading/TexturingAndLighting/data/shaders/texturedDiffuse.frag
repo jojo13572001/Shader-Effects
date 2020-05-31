@@ -12,12 +12,13 @@ uniform vec4 MaterialEmissive;
 uniform vec4 MaterialDiffuse;
 uniform vec4 MaterialSpecular;
 uniform float MaterialShininess;
-uniform bool blinn;
+uniform int shaderType;
 
 uniform vec4 Ambient; // Global ambient contribution.
 
 uniform sampler2D diffuseSampler;
-uniform sampler2D lutSampler;
+uniform sampler2D lutDiffuseSampler;
+uniform sampler2D lutSpecularSampler;
 
 layout (location=0) out vec4 out_color;
 
@@ -31,29 +32,35 @@ void main()
     vec4 L = normalize( LightPosW - v2f_positionW );
     float NdotL = max( dot( N, L ), 0.0 );
     
-    // Compute the specular term.
+    // Compute the camera view direction term.
     vec4 V = normalize( EyePosW - v2f_positionW );
 
-	vec4 Specular;
-	vec4 Diffuse;
-	if(blinn)
-	{
-		//Blinn Phong Model
-		vec4 H = normalize( L + V );
-		float NdotH = max( dot( N, H ), 0);
-		vec2 uv = vec2(NdotL, NdotH);
-
-		vec4 lut = texture2D(lutSampler, uv);
-        Specular = lut.a*MaterialSpecular*LightColor;
-		Diffuse = lut*MaterialDiffuse;
-		out_color = ( Emissive + Ambient + Diffuse + Specular ) * texture( diffuseSampler, v2f_texcoord );
-	}
-    else {
+	if (shaderType == 0) {//phong
 		//Phong model
 		vec4 R = reflect( -L, N );
 		float RdotV = max( dot( R, V ), 0 );
-		Specular = pow( RdotV, MaterialShininess )*MaterialSpecular;
-		Diffuse = NdotL*MaterialDiffuse;
+		vec4 Diffuse = NdotL*MaterialDiffuse;
+		vec4 Specular = pow( RdotV, MaterialShininess )*MaterialSpecular;
 		out_color = ( Emissive + Ambient + (Diffuse + Specular)*LightColor ) * texture( diffuseSampler, v2f_texcoord );
+	}
+	else if(shaderType == 1) {//blinn
+		//Blinn Phong Model
+		vec4 H = normalize( L + V );
+		float NdotH = max( dot( N, H ), 0);
+		vec4 Diffuse = NdotL*MaterialDiffuse;
+		vec4 Specular = pow( NdotH, MaterialShininess )*MaterialSpecular;
+		out_color = ( Emissive + Ambient + (Diffuse + Specular)*LightColor ) * texture( diffuseSampler, v2f_texcoord );
+	}
+	else if(shaderType == 2) {//blinn with LUT
+		//Blinn Phong Model
+		vec4 H = normalize( L + V );
+		float NdotH = max( dot( N, H ), 0);
+		vec2 uv = vec2(NdotL, 0);
+		//Diffuse and Specular vector range 0-1
+		vec4 Diffuse = texture2D(lutDiffuseSampler, uv);
+		uv = vec2(NdotH, 0);
+		vec4 Specular = texture2D(lutSpecularSampler, uv);
+		// out_color vector range 0-1
+		out_color = ( Emissive + Ambient + Diffuse + Specular) * texture( diffuseSampler, v2f_texcoord );
 	}
 }
