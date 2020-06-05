@@ -25,6 +25,7 @@ int g_W, g_A, g_S, g_D, g_Q, g_E;
 bool g_bShift = false;
 GLuint shaderType = 0;
 GLboolean enableEarthNormalMap = false;
+GLboolean enableEarthBumpMap = false;
 
 glm::ivec2 g_MousePos;
 
@@ -62,16 +63,19 @@ GLint g_uniformMaterialSpecular = -1;
 GLint g_uniformMaterialShininess =-1;
 GLint g_uniformShaderType = -1;
 GLint g_uniformEnableEarthNormalMap = -1;
+GLint g_uniformEnableEarthBumpMap = -1;
 std::vector<GLint> g_uniformLuts(2, -1);
 GLint g_uniformNormalMap = -1;
+GLint g_uniformBumpMap = -1;
 
 GLuint g_EarthTexture = 0;
 GLuint g_EarthNormalMap = 0;
+GLuint g_EarthBumpMap = 0;
 GLuint g_MoonTexture = 0;
 std::vector<GLuint> g_LutTextures;
 
 std::vector<std::string> shaderTypes = { "Phong", "Blinn Phong" , "LUT Blinn Phong"};
-std::string normalMapHeadline;
+std::string normalMapHeadline, bumpMapHeadline;
 glm::vec4 materialDiffuseEarth(1);
 glm::vec4 lightColor(1);
 glm::vec4 materialSpecularEarth(2.0f, 2.0f, 2.0f, 1.0f);
@@ -436,6 +440,7 @@ int main( int argc, char* argv[] )
 
     g_EarthTexture = LoadTexture( "../data/Textures/earth2k.jpg" );
 	g_EarthNormalMap = LoadTexture("../data/Textures/normal8k.dds");
+	g_EarthBumpMap = LoadTexture("../data/Textures/bump1k.jpg");
     g_MoonTexture = LoadTexture( "../data/Textures/moon.dds" );
 	
 	//creat lookup table texture
@@ -485,7 +490,9 @@ int main( int argc, char* argv[] )
 	g_uniformLuts[0] = glGetUniformLocation(g_TexturedDiffuseShaderProgram, "lutDiffuseSampler");
 	g_uniformLuts[1] = glGetUniformLocation(g_TexturedDiffuseShaderProgram, "lutSpecularSampler");
 	g_uniformNormalMap = glGetUniformLocation(g_TexturedDiffuseShaderProgram, "normalMapSampler");
+	g_uniformBumpMap = glGetUniformLocation(g_TexturedDiffuseShaderProgram, "bumpMapSampler");
 	g_uniformEnableEarthNormalMap = glGetUniformLocation(g_TexturedDiffuseShaderProgram, "enableEarthNormalMap");
+	g_uniformEnableEarthBumpMap = glGetUniformLocation(g_TexturedDiffuseShaderProgram, "enableEarthBumpMap");
 
     glutMainLoop();
 }
@@ -556,12 +563,16 @@ void DisplayGL()
 	glActiveTexture(GL_TEXTURE0 + 3);
 	glBindTexture(GL_TEXTURE_2D, g_EarthNormalMap);
 
+	glActiveTexture(GL_TEXTURE0 + 4);
+	glBindTexture(GL_TEXTURE_2D, g_EarthBumpMap);
+
 	//start using earth shader
     glUseProgram( g_TexturedDiffuseShaderProgram );
 
 	glUniform1i(g_uniformLuts[0], 1); // location = 9 <- texture unit 1
 	glUniform1i(g_uniformLuts[1], 2);
 	glUniform1i(g_uniformNormalMap, 3);
+	glUniform1i(g_uniformBumpMap, 4);
 
     // Set the light position to the position of the Sun.
     glUniform4fv( g_uniformLightPosW, 1, glm::value_ptr(modelMatrix[3]) );
@@ -571,6 +582,7 @@ void DisplayGL()
 	//switch between all shading types
 	glUniform1i(g_uniformShaderType, shaderType);
 	glUniform1i(g_uniformEnableEarthNormalMap, enableEarthNormalMap);
+	glUniform1i(g_uniformEnableEarthBumpMap, enableEarthBumpMap);
 
     
 	// Draw the Earth
@@ -627,7 +639,7 @@ void DisplayGL()
 	}
 
 	drawStrokeText(const_cast<char*>(fps.c_str()), 0, g_iWindowHeight*0.9, 0);
-	drawStrokeText(const_cast<char*>((shaderTypes[shaderType]+normalMapHeadline).c_str()), 0, g_iWindowHeight*0.1, 0);
+	drawStrokeText(const_cast<char*>((shaderTypes[shaderType]+normalMapHeadline+ bumpMapHeadline).c_str()), 0, g_iWindowHeight*0.1, 0);
 		
     glutSwapBuffers();
 }
@@ -711,6 +723,11 @@ void KeyboardGL( unsigned char c, int x, int y )
 	case 'n' :
 		enableEarthNormalMap = !enableEarthNormalMap;
 		normalMapHeadline = (enableEarthNormalMap && shaderType!=2) ? " (Normal Map)" : "";
+		break;
+	case 'B':
+	case 'b':
+		enableEarthBumpMap = !enableEarthBumpMap;
+		bumpMapHeadline = (enableEarthBumpMap) ? " (bump Map)" : "";
 		break;
     case 27:
         glutLeaveMainLoop();

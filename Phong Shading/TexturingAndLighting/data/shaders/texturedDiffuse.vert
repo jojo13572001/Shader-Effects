@@ -12,11 +12,17 @@ out vec2 v2f_texcoord;
 uniform mat4 ModelViewProjectionMatrix;
 uniform mat4 ModelMatrix;
 
+uniform sampler2D bumpMapSampler;
+uniform bool enableEarthBumpMap;
+
 void main()
 {
-    gl_Position = ModelViewProjectionMatrix * vec4(in_position, 1);
+	vec4 uv = texture2D( bumpMapSampler, in_texcoord );
+	float bump = enableEarthBumpMap ? uv.r*0.15 : 0; //scale=0.15
+	vec3 bump_in_position = normalize(in_normal) * bump + in_position;
 
-    v2f_positionW = ModelMatrix * vec4(in_position, 1); 
+    gl_Position = ModelViewProjectionMatrix * vec4(bump_in_position, 1);
+    v2f_positionW = ModelMatrix * vec4(bump_in_position, 1); 
     v2f_normalW = ModelMatrix * vec4(in_normal, 0);
     v2f_texcoord = in_texcoord;
 }
